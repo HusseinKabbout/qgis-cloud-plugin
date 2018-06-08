@@ -28,6 +28,7 @@ from .mapsettingsUI.ui_mapsettings import Ui_map_settings
 from .mapsettingsUI.ui_generatescales import Ui_generate_scales
 from .mapsettingsUI.ui_sqlpreview import Ui_sql_preview
 from .mapsettingsUI.ui_showusers import Ui_show_users
+from .mapsettingsUI.ui_user_list_manager import Ui_user_list_manager
 
 import re
 
@@ -51,16 +52,13 @@ class MapSettingsDialog(QDialog):
         self.map_settings = self.api.read_map(map_id)
         # get all map options
         self.all_map_options = self.api.read_map_options()
-        # add userlist to settings
-        QSettings().setValue("qgiscloud/%s/userlist" %
-                             self.map_settings["map"]["name"],
-                             ", ".join(self.map_settings["map"]["users"]))
 
         # set values of ui elements
         self.set_checkboxes()
         self.set_combobox_options()
         self.set_scales()
         self.set_search_type()
+        self.enable_DBsearch()
 
         # set connections
         self.ui.generate_scales_btn.clicked.connect(self.generate_scales)
@@ -69,7 +67,12 @@ class MapSettingsDialog(QDialog):
         self.ui.sql_preview_btn.clicked.connect(self.validate_sql_query)
         self.ui.add_users_btn.clicked.connect(self.add_user)
         self.ui.delete_user_btn.clicked.connect(self.delete_user)
-        self.ui.show_userlist_btn.clicked.connect(self.show_user_list)
+        self.ui.show_user_list_btn.clicked.connect(self.show_user_list)
+        self.ui.create_pre_list_btn.clicked.connect(
+            self.create_predefined_user_list)
+        self.ui.manage_pre_list_btn.clicked.connect(
+            self.manage_predefined_user_list)
+        self.ui.add_pre_list_btn.clicked.connect(self.add_predefined_user_list)
         self.ui.save_settings_btn.button(
             QDialogButtonBox.Apply).clicked.connect(self.save_options)
 
@@ -115,6 +118,8 @@ class MapSettingsDialog(QDialog):
             self.ui.language_combobox.addItem(lang)
             self.ui.language_combobox.setCurrentText(language)
 
+        self.get_predefined_user_lists()
+
     def set_scales(self):
         """
         This method sets the scales.
@@ -132,7 +137,8 @@ class MapSettingsDialog(QDialog):
         scaleDialog.ui = Ui_generate_scales()
         scaleDialog.ui.setupUi(scaleDialog)
         generate = scaleDialog.exec_()
-        all_scales = self.ui.scales_lineedit.text().split(",")
+        all_scales = list(filter(
+            str.isdigit, (self.ui.scales_lineedit.text().split(","))))
 
         minscale = scaleDialog.ui.min_lineedit.text()
         maxscale = scaleDialog.ui.max_lineedit.text()
@@ -218,6 +224,8 @@ class MapSettingsDialog(QDialog):
             # labels
             self.ui.search_db_lbl.setVisible(True)
             self.ui.search_sql_lbl.setVisible(True)
+            self.resize(673, 794)
+            self.ui.sql_editor_box.setMaximumHeight(16777215)
         else:
             self.ui.search_db_combobox.setVisible(False)
             self.ui.search_sql_textedit.setVisible(False)
@@ -225,6 +233,8 @@ class MapSettingsDialog(QDialog):
             # labels
             self.ui.search_db_lbl.setVisible(False)
             self.ui.search_sql_lbl.setVisible(False)
+            self.resize(680, 700)
+            self.ui.sql_editor_box.setMaximumHeight(150)
 
     def set_sql_query(self):
         """
@@ -291,7 +301,7 @@ class MapSettingsDialog(QDialog):
 
     def add_user(self):
         """
-        This method trys to add a new user and if the user exists then it adds
+        This method tries to add a new user and if the user exists then it adds
         him to the user list, but if he doesn't exist, an error message is
         shown.
         The class variable self.map_settings can't be used here because this
@@ -371,7 +381,7 @@ class MapSettingsDialog(QDialog):
         res = QMessageBox.information(
             self,
             self.tr(""),
-            self.tr("Do you really want to delete the user %s?") %
+            self.tr("Do you really want to delete the users: %s?") %
             (", ".join(users_to_delete)), QMessageBox.Yes | QMessageBox.No)
 
         if res == QMessageBox.No:
@@ -389,7 +399,7 @@ class MapSettingsDialog(QDialog):
             QMessageBox.information(
                 self,
                 self.tr("Success"),
-                self.tr("The users: %s has been deleted.") %
+                self.tr("The users: %s have been deleted.") %
                 (", ".join(deleted_users)))
             self.ui.users_lineedit.clear()
             self.ui.users_lineedit.selectAll()
@@ -460,6 +470,197 @@ class MapSettingsDialog(QDialog):
                 self.tr("Error"),
                 self.tr("No user list selected."))
 
+    def get_predefined_user_lists(self):
+        qgis_setting = "qgiscloud/user_lists"
+        list_names = []
+        for key in QSettings().allKeys():
+            if qgis_setting in key:
+                list_names.append(key.split("/")[2])
+        self.ui.user_list_combobox.addItems(list_names)
+
+    def create_predefined_user_list(self):
+        if "qgiscloud/user_lists/custom_name" not in QSettings().allKeys():
+            QSettings().setValue("qgiscloud/user_lists/custom_name", "")
+            self.ui.user_list_combobox.addItem("custom_name")
+            self.ui.user_list_combobox.setCurrentText("custom_name")
+            self.manage_predefined_user_list()
+
+    def manage_predefined_user_list(self):
+        if self.ui.user_list_combobox.count() == 0:
+            QMessageBox.information(
+                self,
+                self.tr(""),
+                self.tr("There are no user lists defined."))
+            return
+        manage_list_dialog = QDialog(self)
+        manage_list_dialog.ui = Ui_user_list_manager()
+        manage_list_dialog.ui.setupUi(manage_list_dialog)
+
+        manage_list_dialog.ui.list_name_edit.setText(
+            self.ui.user_list_combobox.currentText())
+
+        list_name = manage_list_dialog.ui.list_name_edit.text()
+
+        manage_list_dialog.ui.remove_user_btn.clicked.connect(
+            lambda: self.delete_user_from_user_list(
+                manage_list_dialog))
+        manage_list_dialog.ui.add_user_btn.clicked.connect(
+            lambda: self.add_user_to_user_list(manage_list_dialog))
+
+        manage_list_dialog.ui.delete_list_btn.clicked.connect(
+            lambda: self.delete_predefined_user_list(
+                manage_list_dialog, list_name))
+
+        manage_list_dialog.ui.buttonBox.button(
+            QDialogButtonBox.Save).clicked.connect(
+                lambda: self.save_predefined_user_list(
+                    manage_list_dialog, list_name))
+
+        manage_list_dialog.ui.buttonBox.button(
+            QDialogButtonBox.Close).clicked.connect(manage_list_dialog.close)
+
+        self.fill_listwidget(manage_list_dialog)
+        manage_list_dialog.exec_()
+
+    def fill_listwidget(self, dialog):
+        user_list = QSettings().value(
+            "qgiscloud/user_lists/" + self.ui.user_list_combobox.currentText())
+        if not user_list:
+            return
+        dialog.ui.user_listwidget.clear()
+
+        if type(user_list) == list:
+            for user in user_list:
+                item = QListWidgetItem(user)
+                item.setFlags(item.flags() | Qt.ItemIsEditable)
+                dialog.ui.user_listwidget.addItem(item)
+        else:
+            item = QListWidgetItem(user_list)
+            dialog.ui.user_listwidget.addItem(item)
+
+    def delete_user_from_user_list(self, dialog):
+        if dialog.ui.user_listwidget.currentItem() is not None:
+            res = QMessageBox.information(
+                self,
+                self.tr(""),
+                self.tr("Do you really want to delete the user: %s?") % (
+                    dialog.ui.user_listwidget.currentItem().text()),
+                QMessageBox.Yes | QMessageBox.No)
+
+            if res == QMessageBox.Yes:
+                index = dialog.ui.user_listwidget.currentRow()
+                dialog.ui.user_listwidget.takeItem(index)
+        else:
+            QMessageBox.information(
+                self,
+                self.tr(""),
+                self.tr("No user has been selected."))
+
+    def add_user_to_user_list(self, dialog):
+        for i in range(dialog.ui.user_listwidget.count()):
+            if "new_user" == dialog.ui.user_listwidget.item(i).text():
+                dialog.ui.user_listwidget.editItem(
+                    dialog.ui.user_listwidget.item(i))
+                return
+        item = QListWidgetItem("new_user")
+        item.setFlags(item.flags() | Qt.ItemIsEditable)
+        dialog.ui.user_listwidget.addItem(item)
+        dialog.ui.user_listwidget.editItem(item)
+
+    def save_predefined_user_list(self, dialog, old_list_name):
+        save = QMessageBox.information(
+            self,
+            self.tr(""),
+            self.tr("Do you really want to save?"),
+            QMessageBox.Yes | QMessageBox.No)
+        if save == QMessageBox.No:
+            for i in range(dialog.ui.user_listwidget.count()):
+                if dialog.ui.user_listwidget.item(i).text() == "new_user":
+                    index = dialog.ui.user_listwidget.row(
+                        dialog.ui.user_listwidget.item(i))
+                    dialog.ui.user_listwidget.takeItem(index)
+            return
+
+        user_names = []
+        settings = QSettings()
+        new_list_name = dialog.ui.list_name_edit.text()
+
+        for i in range(dialog.ui.user_listwidget.count()):
+            if dialog.ui.user_listwidget.item(i).text() == "new_user":
+                index = dialog.ui.user_listwidget.row(
+                    dialog.ui.user_listwidget.item(i))
+                dialog.ui.user_listwidget.takeItem(index)
+                continue
+            user_names.append(dialog.ui.user_listwidget.item(i).text())
+
+        if new_list_name == old_list_name:
+            settings.setValue(
+                "qgiscloud/user_lists/" + new_list_name, user_names)
+        elif "qgiscloud/user_lists/" + new_list_name not in QSettings().allKeys():
+            index = self.ui.user_list_combobox.findText(old_list_name)
+
+            settings.remove("qgiscloud/user_lists/" + old_list_name)
+            self.ui.user_list_combobox.removeItem(index)
+
+            settings.setValue(
+                "qgiscloud/user_lists/" + new_list_name, user_names)
+            self.ui.user_list_combobox.addItem(new_list_name)
+            self.ui.user_list_combobox.setCurrentText(new_list_name)
+        else:
+            QMessageBox.information(
+                self,
+                self.tr("Name Error"),
+                self.tr("This listname already exists.\n"
+                        "Please choose another one."))
+
+    def delete_predefined_user_list(self, dialog, name_to_delete):
+        res = QMessageBox.information(
+            self,
+            self.tr(""),
+            self.tr("Do you really want to delete the list?"),
+            QMessageBox.Yes | QMessageBox.No)
+
+        if res == QMessageBox.No:
+            return
+
+        index = self.ui.user_list_combobox.findText(name_to_delete)
+
+        QSettings().remove("qgiscloud/user_lists/" + name_to_delete)
+        self.ui.user_list_combobox.removeItem(index)
+        dialog.close()
+
+    def add_predefined_user_list(self):
+        if not self.ui.user_list_combobox.currentText():
+            QMessageBox.information(
+                self,
+                self.tr(""),
+                self.tr("No user list selected."))
+            return
+        QGuiApplication.setOverrideCursor(Qt.WaitCursor)
+        user_list_name = self.ui.user_list_combobox.currentText()
+        all_user_names = QSettings().value(
+            "qgiscloud/user_lists/" + user_list_name)
+
+        if all_user_names:
+            map_settings = self.api.read_map(self.map_id)
+            user_list = []
+            for old_user in map_settings["map"]["users"]:
+                user_list.append(old_user)
+
+            for user in all_user_names:
+                user_list.append(user)
+
+            if user_list:
+                self.api.update_map(
+                    self.map_id, {"map[users]": ",".join(user_list)})
+
+        QGuiApplication.restoreOverrideCursor()
+
+        QMessageBox.information(
+            self,
+            self.tr(""),
+            self.tr("The users have been added."))
+
     def save_options(self):
         """
         This method saves all options that the user changed. It uses the
@@ -492,10 +693,6 @@ class MapSettingsDialog(QDialog):
 
         self.api.update_map(self.map_id, data)
 
-        # add userlist to settings
-        QSettings().setValue("qgiscloud/%s/userlist" %
-                             map_settings["map"]["name"],
-                             ", ".join(map_settings["map"]["users"]))
         QGuiApplication.restoreOverrideCursor()
 
     def check_plan(self, plan):
