@@ -59,8 +59,13 @@ class MapSettingsDialog(QDialog):
         self.set_scales()
         self.set_search_type()
         self.enable_DBsearch()
+        self.enable_user_management()
 
         # set connections
+        self.ui.wms_public_chkb.stateChanged.connect(
+            self.enable_user_management)
+        self.ui.map_public_chkb.stateChanged.connect(
+            self.enable_user_management)
         self.ui.generate_scales_btn.clicked.connect(self.generate_scales)
         self.ui.search_type_list.itemSelectionChanged.connect(
             self.enable_DBsearch)
@@ -216,25 +221,15 @@ class MapSettingsDialog(QDialog):
         """
         This method disables UI elements, based on the search type selection.
         """
-        self.set_sql_query()
         if self.ui.search_type_list.currentItem().text() == "DBSearch":
-            self.ui.search_db_combobox.setVisible(True)
-            self.ui.search_sql_textedit.setVisible(True)
-            self.ui.sql_preview_btn.setVisible(True)
-            # labels
-            self.ui.search_db_lbl.setVisible(True)
-            self.ui.search_sql_lbl.setVisible(True)
-            self.resize(673, 794)
-            self.ui.sql_editor_box.setMaximumHeight(16777215)
+            self.set_sql_query()
+            self.ui.search_db_combobox.setEnabled(True)
+            self.ui.search_sql_textedit.setEnabled(True)
+            self.ui.sql_preview_btn.setEnabled(True)
         else:
-            self.ui.search_db_combobox.setVisible(False)
-            self.ui.search_sql_textedit.setVisible(False)
-            self.ui.sql_preview_btn.setVisible(False)
-            # labels
-            self.ui.search_db_lbl.setVisible(False)
-            self.ui.search_sql_lbl.setVisible(False)
-            self.resize(680, 700)
-            self.ui.sql_editor_box.setMaximumHeight(150)
+            self.ui.search_db_combobox.setEnabled(False)
+            self.ui.search_sql_textedit.setEnabled(False)
+            self.ui.sql_preview_btn.setEnabled(False)
 
     def set_sql_query(self):
         """
@@ -298,6 +293,26 @@ class MapSettingsDialog(QDialog):
         preview_dialog.ui.sql_preview_view.resizeColumnsToContents()
 
         preview_dialog.exec_()
+
+    def enable_user_management(self):
+        if not self.ui.wms_public_chkb.isChecked() or not self.ui.map_public_chkb.isChecked():
+            self.ui.user_list_combobox.setEnabled(False)
+            self.ui.create_pre_list_btn.setEnabled(False)
+            self.ui.add_pre_list_btn.setEnabled(False)
+            self.ui.manage_pre_list_btn.setEnabled(False)
+            self.ui.users_lineedit.setEnabled(False)
+            self.ui.add_users_btn.setEnabled(False)
+            self.ui.delete_user_btn.setEnabled(False)
+            self.ui.show_user_list_btn.setEnabled(False)
+        else:
+            self.ui.user_list_combobox.setEnabled(True)
+            self.ui.create_pre_list_btn.setEnabled(True)
+            self.ui.add_pre_list_btn.setEnabled(True)
+            self.ui.manage_pre_list_btn.setEnabled(True)
+            self.ui.users_lineedit.setEnabled(True)
+            self.ui.add_users_btn.setEnabled(True)
+            self.ui.delete_user_btn.setEnabled(True)
+            self.ui.show_user_list_btn.setEnabled(True)
 
     def add_user(self):
         """
@@ -517,7 +532,7 @@ class MapSettingsDialog(QDialog):
                     manage_list_dialog, list_name))
 
         manage_list_dialog.ui.buttonBox.button(
-            QDialogButtonBox.Close).clicked.connect(manage_list_dialog.close)
+            QDialogButtonBox.Cancel).clicked.connect(manage_list_dialog.close)
 
         self.fill_listwidget(manage_list_dialog)
         manage_list_dialog.exec_()
@@ -568,6 +583,17 @@ class MapSettingsDialog(QDialog):
         dialog.ui.user_listwidget.editItem(item)
 
     def save_predefined_user_list(self, dialog, old_list_name):
+        user_names = []
+        settings = QSettings()
+        new_list_name = dialog.ui.list_name_edit.text()
+
+        if new_list_name is "":
+            QMessageBox.information(
+                self,
+                self.tr(""),
+                self.tr("Listname is empty.\nPlease provide a name."))
+            return
+
         save = QMessageBox.information(
             self,
             self.tr(""),
@@ -580,10 +606,6 @@ class MapSettingsDialog(QDialog):
                         dialog.ui.user_listwidget.item(i))
                     dialog.ui.user_listwidget.takeItem(index)
             return
-
-        user_names = []
-        settings = QSettings()
-        new_list_name = dialog.ui.list_name_edit.text()
 
         for i in range(dialog.ui.user_listwidget.count()):
             if dialog.ui.user_listwidget.item(i).text() == "new_user":
@@ -699,12 +721,9 @@ class MapSettingsDialog(QDialog):
         # Disable GUI elements
         if plan != "Free":
             if self.ui.search_type_list.currentItem().text() != "DBSearch":
-                self.ui.search_db_combobox.setVisible(False)
-                self.ui.search_sql_textedit.setVisible(False)
-                self.ui.sql_preview_btn.setVisible(False)
-                # labels
-                self.ui.search_db_lbl.setVisible(False)
-                self.ui.search_sql_lbl.setVisible(False)
+                self.ui.search_db_combobox.setEnabled(False)
+                self.ui.search_sql_textedit.setEnabled(False)
+                self.ui.sql_preview_btn.setEnabled(False)
             else:
                 self.set_sql_query()
         else:
