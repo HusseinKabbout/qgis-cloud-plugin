@@ -122,7 +122,7 @@ class API(object):
             Reset user/password for authentication.
         """
         self.user = self.password = None
-        
+
     def accept_tos(self):
         """
         Accept GDPR complient privacy policy
@@ -131,7 +131,7 @@ class API(object):
         resource = '/account/accept_tos.json'
         request = Request(user=self.user, password=self.password, token=self.get_token(), cache=self.cache, url=self.url)
         request.post(resource)
-        return True     
+        return True
 
     def check_auth(self):
         """
@@ -320,6 +320,16 @@ class API(object):
         """
         self.requires_auth()
         resource = '/maps/%s.json' % (map_id)
+        request = Request(user=self.user, password=self.password, token=self.get_token(), cache=self.cache, url=self.url)
+        content = request.get(resource)
+        return json.loads(content)
+
+    def read_shared_maps(self):
+        """
+            Returns all shared maps.
+        """
+        self.requires_auth()
+        resource = '/maps/accessible.json'
         request = Request(user=self.user, password=self.password, token=self.get_token(), cache=self.cache, url=self.url)
         content = request.get(resource)
         return json.loads(content)

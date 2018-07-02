@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>556</width>
-    <height>652</height>
+    <height>742</height>
    </rect>
   </property>
   <property name="locale">
@@ -230,6 +230,33 @@ p, li { white-space: pre-wrap; }
               </sizepolicy>
              </property>
              <layout class="QGridLayout" name="gridLayout_2">
+              <item row="7" column="2">
+               <widget class="QPushButton" name="btnMapEdit">
+                <property name="text">
+                 <string>Map Settings</string>
+                </property>
+               </widget>
+              </item>
+              <item row="1" column="0" colspan="6">
+               <widget class="QListWidget" name="tabMaps"/>
+              </item>
+              <item row="7" column="0">
+               <widget class="QPushButton" name="btnMapLoad">
+                <property name="text">
+                 <string>Open Project</string>
+                </property>
+               </widget>
+              </item>
+              <item row="7" column="3">
+               <widget class="QPushButton" name="btnMapDelete">
+                <property name="enabled">
+                 <bool>false</bool>
+                </property>
+                <property name="text">
+                 <string>Delete</string>
+                </property>
+               </widget>
+              </item>
               <item row="0" column="0">
                <widget class="QLabel" name="lblMaps_3">
                 <property name="font">
@@ -243,27 +270,10 @@ p, li { white-space: pre-wrap; }
                 </property>
                </widget>
               </item>
-              <item row="1" column="0" colspan="4">
-               <widget class="QListWidget" name="tabMaps"/>
+              <item row="3" column="0" colspan="6">
+               <widget class="QListWidget" name="tabsharedMaps"/>
               </item>
-              <item row="2" column="0">
-               <widget class="QPushButton" name="btnMapLoad">
-                <property name="text">
-                 <string>Open Project</string>
-                </property>
-               </widget>
-              </item>
-              <item row="2" column="2">
-               <widget class="QPushButton" name="btnMapDelete">
-                <property name="enabled">
-                 <bool>false</bool>
-                </property>
-                <property name="text">
-                 <string>Delete</string>
-                </property>
-               </widget>
-              </item>
-              <item row="2" column="3">
+              <item row="7" column="5">
                <spacer name="horizontalSpacer_5">
                 <property name="orientation">
                  <enum>Qt::Horizontal</enum>
@@ -276,10 +286,50 @@ p, li { white-space: pre-wrap; }
                 </property>
                </spacer>
               </item>
-              <item row="2" column="1">
-               <widget class="QPushButton" name="btnMapEdit">
+              <item row="2" column="0">
+               <widget class="QLabel" name="sharedMapslbl">
+                <property name="font">
+                 <font>
+                  <weight>75</weight>
+                  <bold>true</bold>
+                 </font>
+                </property>
                 <property name="text">
-                 <string>Map Settings</string>
+                 <string>Shared Maps</string>
+                </property>
+               </widget>
+              </item>
+              <item row="4" column="0" rowspan="3" colspan="6">
+               <widget class="QWidget" name="shared_maps_widget" native="true">
+                <layout class="QGridLayout" name="gridLayout_7">
+                 <item row="0" column="0">
+                  <widget class="QLabel" name="shared_map_url_lbl">
+                   <property name="text">
+                    <string>Shared Map url</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="0" column="1">
+                  <widget class="QLabel" name="shared_map_url_lbl_2">
+                   <property name="text">
+                    <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
+&lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
+p, li { white-space: pre-wrap; }
+&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'Ubuntu'; font-size:11pt; font-weight:400; font-style:normal;&quot;&gt;
+&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;a href=&quot;http://qgiscloud.com/user/map&quot;&gt;&lt;span style=&quot; font-size:9pt; text-decoration: underline; color:#0057ae;&quot;&gt;https://qgiscloud.com/user/map&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                   </property>
+                   <property name="openExternalLinks">
+                    <bool>true</bool>
+                   </property>
+                  </widget>
+                 </item>
+                </layout>
+               </widget>
+              </item>
+              <item row="7" column="1">
+               <widget class="QPushButton" name="refresh_shared_maps_btn">
+                <property name="text">
+                 <string>Refresh Shared Maps</string>
                 </property>
                </widget>
               </item>

@@ -153,6 +153,7 @@ class QgisCloudPluginDialog(QDockWidget):
         self.ui.btnLogout.hide()
         self.ui.lblLoginStatus.hide()
         self.ui.widgetServices.hide()
+        self.ui.shared_maps_widget.hide()
         self.ui.widgetDatabases.setEnabled(False)
         self.ui.widgetMaps.setEnabled(False)
         self.ui.labelOpenLayersPlugin.hide()
@@ -177,8 +178,11 @@ class QgisCloudPluginDialog(QDockWidget):
         self.ui.btnMapEdit.clicked.connect(self.edit_map)
         self.ui.btnMapLoad.clicked.connect(self.map_load)
         self.ui.tabMaps.itemDoubleClicked.connect(self.map_load)
+        self.ui.tabsharedMaps.itemDoubleClicked.connect(self.shared_map_load)
         self.ui.tabDatabases.itemSelectionChanged.connect(self.select_database)
         self.ui.tabMaps.itemSelectionChanged.connect(self.select_map)
+        self.ui.tabsharedMaps.itemSelectionChanged.connect(self.select_shared_map)
+        self.ui.refresh_shared_maps_btn.clicked.connect(self.refresh_shared_maps)
         self.ui.btnPublishMap.clicked.connect(self.publish_map)
         self.ui.btnRefreshLocalLayers.clicked.connect(self.refresh_local_data_sources)
         self.iface.newProjectCreated.connect(self.reset_load_data)
@@ -331,6 +335,7 @@ class QgisCloudPluginDialog(QDockWidget):
                         level=0, duration=2)
                     self.refresh_databases()
                     self.refresh_maps()
+                    self.refresh_shared_maps()
                     if not version_ok:
                         self._push_message(self.tr("QGIS Cloud"), self.tr(
                             "Unsupported versions detected. Please check your versions first!"), level=1)
@@ -415,6 +420,16 @@ class QgisCloudPluginDialog(QDockWidget):
         self.ui.btnMapLoad.setEnabled(len(self.ui.tabMaps.selectedItems()) > 0)
         self.update_urls(map=self.ui.tabMaps.currentItem().text())
 
+    def select_shared_map(self):
+        map_list = self.api.read_shared_maps()
+        name = False
+        for map in map_list['accessible_maps']:
+            if self.ui.tabsharedMaps.currentItem() and map['name'] == self.ui.tabsharedMaps.currentItem().text():
+                name = map['name']
+                user = map['user']
+        if name:
+            self.update_shared_url(user, name)
+
     @pyqtSlot()
     def on_btnLogout_clicked(self):
         self.api.reset_auth()
@@ -422,8 +437,10 @@ class QgisCloudPluginDialog(QDockWidget):
         self.ui.lblLoginStatus.hide()
         self.ui.btnLogin.show()
         self.ui.widgetServices.hide()
+        self.ui.shared_maps_widget.hide()
         self.ui.tabDatabases.clear()
         self.ui.tabMaps.clear()
+        self.ui.tabsharedMaps.clear()
         self.ui.lblDbSize.setText("")
         self.ui.lblDbSizeUpload.setText("")
         self.ui.cbUploadDatabase.clear()
@@ -491,6 +508,12 @@ class QgisCloudPluginDialog(QDockWidget):
         self.iface.mainWindow().setWindowTitle("QGIS %s - %s" % (Qgis.QGIS_VERSION,  map_name))
         self.unsetCursor()
 
+    def shared_map_load(self):
+        self.setCursor(Qt.WaitCursor)
+        self.ui.shared_maps_widget.close()
+        # Ask if the map should load here or not
+        self.unsetCursor()
+
     def delete_map(self):
         name = self.ui.tabMaps.currentItem().text()
         map_id = self.ui.tabMaps.currentItem().data(Qt.UserRole)
@@ -550,6 +573,21 @@ class QgisCloudPluginDialog(QDockWidget):
 
         QApplication.restoreOverrideCursor()
 
+    def refresh_shared_maps(self):
+        QApplication.setOverrideCursor(Qt.WaitCursor)
+        map_list = self.api.read_shared_maps()
+        if self.show_api_error(map_list):
+            QApplication.restoreOverrideCursor()
+            return
+
+        self.ui.tabsharedMaps.clear()
+        for map in map_list['accessible_maps']:
+            item = QListWidgetItem(map['name'])
+            self.ui.tabsharedMaps.addItem(item)
+        self.ui.shared_map_url_lbl_2.setVisible(False)
+        self.ui.shared_map_url_lbl.setVisible(False)
+        QApplication.restoreOverrideCursor()
+
     def api_url(self):
         return str(self.ui.editServer.text())
 
@@ -585,6 +623,22 @@ class QgisCloudPluginDialog(QDockWidget):
         url = u'{0}/{1}'.format(base_url, path)
         text = re.sub(r'http[^"]+', url, str(label.text()))
         label.setText(text)
+
+    def update_shared_url(self, user, name):
+        api_url = self.api_url()
+        prefix = 'https://'
+        path = u'{0}/{1}/'.format(user, name)
+        try:
+            base_url = string.replace(api_url, 'https://api.', prefix)
+        except:
+            base_url = api_url.replace('https://api.', prefix)
+
+        url = u'{0}/{1}'.format(base_url, path)
+        text = re.sub(r'http[^"]+', url, str(self.ui.shared_map_url_lbl_2.text()))
+        self.ui.shared_map_url_lbl_2.setText(text)
+        self.ui.shared_map_url_lbl.setVisible(True)
+        self.ui.shared_map_url_lbl_2.setVisible(True)
+        self.ui.shared_maps_widget.show()
 
     def read_maps(self):
         if self.check_login():
@@ -683,9 +737,11 @@ class QgisCloudPluginDialog(QDockWidget):
 
     def reset_load_data(self):
         self.ui.widgetServices.hide()
+        self.ui.shared_maps_widget.hide()
         self.update_local_data_sources([],  [])
         self.ui.btnUploadData.setEnabled(False)
         self.ui.tabMaps.clearSelection()
+        self.ui.tabsharedMaps.clearSelection()
 
     def remove_layer(self, layer_id):
         if self.do_update_local_data_sources:
